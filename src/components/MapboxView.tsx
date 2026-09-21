@@ -115,7 +115,7 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
         );
       }
 
-      // A. Ground Shadow Projection Source & Layer
+      // A. Ground Street Route Shadow / Casing Layer
       map.addSource('route-shadow-source', {
         type: 'geojson',
         data: {
@@ -129,6 +129,21 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
       });
 
       map.addLayer({
+        id: 'route-casing-layer',
+        type: 'line',
+        source: 'route-shadow-source',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#4a004a',
+          'line-width': 11,
+          'line-opacity': 0.85
+        }
+      });
+
+      map.addLayer({
         id: 'route-shadow-layer',
         type: 'line',
         source: 'route-shadow-source',
@@ -137,13 +152,13 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#00F5D4',
-          'line-width': 5,
-          'line-opacity': 0.9
+          'line-color': '#ff00aa',
+          'line-width': 8,
+          'line-opacity': 0.98
         }
       });
 
-      // B. 3D Parabolic Arc Source & Layer ("Vuelo de Pájaro")
+      // B. 3D Neon Route Layer
       map.addSource('route-3d-source', {
         type: 'geojson',
         data: {
@@ -165,9 +180,9 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#00F5D4', // Bright Neon Cyan / Emerald Glowing Arc
-          'line-width': 5.5,
-          'line-opacity': 0.95
+          'line-color': '#ff00aa',
+          'line-width': 8,
+          'line-opacity': 0.98
         }
       });
 
@@ -186,8 +201,8 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
         source: 'landing-rings-source',
         paint: {
           'circle-radius': 10,
-          'circle-color': '#00F5D4',
-          'circle-opacity': 0.35,
+          'circle-color': '#ff00aa',
+          'circle-opacity': 0.45,
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff'
         }

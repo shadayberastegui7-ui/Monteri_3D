@@ -72,9 +72,9 @@ export const MapView: React.FC<MapViewProps> = ({ landmarks, onSelectLandmark, o
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#000000',
-            'line-width': 8,
-            'line-opacity': 0.5
+            'line-color': '#4a004a',
+            'line-width': 11,
+            'line-opacity': 0.85
           }
         });
 
@@ -87,9 +87,9 @@ export const MapView: React.FC<MapViewProps> = ({ landmarks, onSelectLandmark, o
             'line-cap': 'round'
           },
           paint: {
-            'line-color': '#ffc24b',
-            'line-width': 5,
-            'line-opacity': 0.95
+            'line-color': '#ff00aa',
+            'line-width': 8,
+            'line-opacity': 0.98
           }
         });
       }
@@ -175,7 +175,7 @@ export const MapView: React.FC<MapViewProps> = ({ landmarks, onSelectLandmark, o
             });
 
             if (map.getLayer('map-selected-route-layer')) {
-              map.setPaintProperty('map-selected-route-layer', 'line-color', selectedRoute.color || '#ffc24b');
+              map.setPaintProperty('map-selected-route-layer', 'line-color', selectedRoute.color || '#ff00aa');
             }
 
             if (streetCoords.length > 0) {

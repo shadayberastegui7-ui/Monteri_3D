@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Landmark } from '../types';
 
 interface LandmarkModalProps {
@@ -13,24 +13,79 @@ export const LandmarkModal: React.FC<LandmarkModalProps> = ({
   onNavigateTo3D,
 }) => {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Clean up audio when landmark changes or component unmounts / modal closes
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlayingAudio(false);
+    };
+  }, [landmark]);
 
   if (!landmark) return null;
 
+  const handleStopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlayingAudio(false);
+  };
+
+  const handleCloseModal = () => {
+    handleStopAudio();
+    onClose();
+  };
+
   const toggleAudioGuide = () => {
-    if (!('speechSynthesis' in window)) return;
+    const audioSrc = landmark.audioUrl || landmark.audioGuideUrl || '/audio/sabores-de-pablo-florez.mp3';
+
     if (isPlayingAudio) {
-      window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
+      handleStopAudio();
     } else {
-      window.speechSynthesis.cancel();
-      const textToSpeak = `${landmark.name}. ${landmark.subtitle}. ${landmark.description}. ${landmark.history}`;
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.lang = 'es-CO';
-      utterance.rate = 0.95;
-      utterance.onend = () => setIsPlayingAudio(false);
-      utterance.onerror = () => setIsPlayingAudio(false);
-      window.speechSynthesis.speak(utterance);
-      setIsPlayingAudio(true);
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      if (!audioRef.current || audioRef.current.src !== new URL(audioSrc, window.location.href).href) {
+        audioRef.current = new Audio(audioSrc);
+        audioRef.current.onended = () => setIsPlayingAudio(false);
+        audioRef.current.onerror = () => {
+          // Fallback to speech synthesis if audio file fails
+          const textToSpeak = `${landmark.name}. ${landmark.subtitle}. ${landmark.description}. ${landmark.history}`;
+          const utterance = new SpeechSynthesisUtterance(textToSpeak);
+          utterance.lang = 'es-CO';
+          utterance.rate = 0.95;
+          utterance.onend = () => setIsPlayingAudio(false);
+          utterance.onerror = () => setIsPlayingAudio(false);
+          window.speechSynthesis.speak(utterance);
+        };
+      }
+
+      audioRef.current.play().then(() => {
+        setIsPlayingAudio(true);
+      }).catch((err) => {
+        console.warn('HTML5 Audio play error, falling back to speech synthesis:', err);
+        const textToSpeak = `${landmark.name}. ${landmark.subtitle}. ${landmark.description}. ${landmark.history}`;
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'es-CO';
+        utterance.rate = 0.95;
+        utterance.onend = () => setIsPlayingAudio(false);
+        utterance.onerror = () => setIsPlayingAudio(false);
+        window.speechSynthesis.speak(utterance);
+        setIsPlayingAudio(true);
+      });
     }
   };
 
@@ -39,11 +94,7 @@ export const LandmarkModal: React.FC<LandmarkModalProps> = ({
       <div className="bg-[#0a0806] border border-[#006b6b] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto text-[#fff9eb] shadow-2xl relative">
         {/* Close Button */}
         <button
-          onClick={() => {
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-            setIsPlayingAudio(false);
-            onClose();
-          }}
+          onClick={handleCloseModal}
           className="absolute top-4 right-4 z-20 bg-[#0a0806]/80 hover:bg-[#ba2215] text-white p-2 rounded-full border border-white/20 transition-all cursor-pointer"
         >
           <span className="material-symbols-outlined text-[20px]">close</span>
@@ -96,7 +147,7 @@ export const LandmarkModal: React.FC<LandmarkModalProps> = ({
               <span className="material-symbols-outlined text-[18px]">
                 {isPlayingAudio ? 'pause' : 'play_arrow'}
               </span>
-              {isPlayingAudio ? 'Pausar' : 'Escuchar'}
+              {isPlayingAudio ? 'PAUSAR' : 'ESCUCHAR'}
             </button>
           </div>
 
@@ -151,8 +202,7 @@ export const LandmarkModal: React.FC<LandmarkModalProps> = ({
           <div className="pt-2 flex gap-3">
             <button
               onClick={() => {
-                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-                setIsPlayingAudio(false);
+                handleCloseModal();
                 onNavigateTo3D(landmark);
               }}
               className="flex-1 bg-[#006b6b] hover:bg-[#005151] text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer border border-[#9ff1f0]/40 shadow-lg"

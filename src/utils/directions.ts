@@ -9,7 +9,7 @@ export async function fetchMapboxRoute(
     return coordinates || [];
   }
 
-  const token = import.meta.env.VITE_MAPBOX_TOKEN || '';
+  const token: string = (import.meta as any).env?.VITE_MAPBOX_TOKEN || '';
   if (!token) {
     console.warn('VITE_MAPBOX_TOKEN is missing. Falling back to straight line route.');
     return coordinates;
@@ -25,7 +25,7 @@ export async function fetchMapboxRoute(
     }
 
     const data = await response.json();
-    if (data.routes && data.routes.length > 0 && data.routes[0].geometry?.coordinates) {
+    if (data && Array.isArray(data.routes) && data.routes.length > 0 && data.routes[0]?.geometry?.coordinates) {
       return data.routes[0].geometry.coordinates as [number, number][];
     }
   } catch (error) {

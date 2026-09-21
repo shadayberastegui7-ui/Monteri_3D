@@ -22,6 +22,7 @@ export interface Landmark {
   imageUrl: string;
   image?: string;
   additionalImages?: string[];
+  audioUrl?: string;
   audioGuideUrl?: string;
   audioDuration?: string;
   tags: string[];

@@ -90,6 +90,8 @@ export const MONTERIA_LANDMARKS: Landmark[] = [
     history: "Diseñada para preservar la tradición intangible del Porro Pelayero y Palitiao que define las festividades del Sinú.",
     imageUrl: "/image/monumento.png",
     image: "/image/monumento.png",
+    audioUrl: "/audio/sabores-de-pablo-florez.mp3",
+    audioGuideUrl: "/audio/sabores-de-pablo-florez.mp3",
     audioDuration: "2:30 min",
     tags: ["Música", "Folclor", "Porro", "Cultura Sinuana"],
     builtYear: "2015",

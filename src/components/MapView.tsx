@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark, RouteItem } from '../types';
 import { MONTERIA_ROUTES } from '../data/monteriaData';
+import { fetchMapboxRoute } from '../utils/directions';
 
 interface MapViewProps {
   landmarks: Landmark[];
@@ -45,6 +46,52 @@ export const MapView: React.FC<MapViewProps> = ({ landmarks, onSelectLandmark, o
         }
       } catch (e) {
         // Style loaded successfully
+      }
+    });
+
+    map.on('load', () => {
+      if (!map.getSource('map-selected-route-source')) {
+        map.addSource('map-selected-route-source', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: []
+            }
+          }
+        });
+
+        map.addLayer({
+          id: 'map-selected-route-casing',
+          type: 'line',
+          source: 'map-selected-route-source',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#000000',
+            'line-width': 8,
+            'line-opacity': 0.5
+          }
+        });
+
+        map.addLayer({
+          id: 'map-selected-route-layer',
+          type: 'line',
+          source: 'map-selected-route-source',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#ffc24b',
+            'line-width': 5,
+            'line-opacity': 0.95
+          }
+        });
       }
     });
 
@@ -94,6 +141,74 @@ export const MapView: React.FC<MapViewProps> = ({ landmarks, onSelectLandmark, o
       markersRef.current.push(marker);
     });
   }, [landmarks, activePin, onSelectLandmark]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    let isCancelled = false;
+
+    const drawRoute = async () => {
+      const source = map.getSource('map-selected-route-source') as mapboxgl.GeoJSONSource;
+      if (!source) return;
+
+      if (selectedRoute) {
+        const routeLandmarks = selectedRoute.landmarkIds
+          .map((id) => landmarks.find((l) => l.id === id))
+          .filter((l): l is Landmark => Boolean(l));
+
+        if (routeLandmarks.length >= 2) {
+          const waypoints: [number, number][] = routeLandmarks.map((l) => [
+            l.coordinates.lng,
+            l.coordinates.lat
+          ]);
+
+          const streetCoords = await fetchMapboxRoute(waypoints, 'walking');
+
+          if (!isCancelled && source) {
+            source.setData({
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'LineString',
+                coordinates: streetCoords
+              }
+            });
+
+            if (map.getLayer('map-selected-route-layer')) {
+              map.setPaintProperty('map-selected-route-layer', 'line-color', selectedRoute.color || '#ffc24b');
+            }
+
+            if (streetCoords.length > 0) {
+              const bounds = streetCoords.reduce(
+                (b, coord) => b.extend(coord as [number, number]),
+                new mapboxgl.LngLatBounds(streetCoords[0], streetCoords[0])
+              );
+              map.fitBounds(bounds, { padding: 60, maxZoom: 16.5, duration: 1200 });
+            }
+          }
+        }
+      } else {
+        source.setData({
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: []
+          }
+        });
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      drawRoute();
+    } else {
+      map.once('load', drawRoute);
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedRoute, landmarks]);
 
   return (
     <div className="relative z-20 w-full h-full overflow-y-auto px-4 md:px-8 pt-20 pb-28 text-[#fff9eb]">

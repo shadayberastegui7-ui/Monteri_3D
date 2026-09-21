@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Landmark, AppSettings } from '../types';
-import { generateItinerary3DArc } from '../utils/arcGenerator';
+import { fetchMapboxRoute } from '../utils/directions';
 
 interface MapboxViewProps {
   landmarks: Landmark[];
@@ -137,10 +137,9 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#005151',
-          'line-width': 3,
-          'line-opacity': 0.5,
-          'line-dasharray': [2, 2]
+          'line-color': '#00F5D4',
+          'line-width': 5,
+          'line-opacity': 0.9
         }
       });
 
@@ -272,12 +271,13 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
     });
   }, [selectedLandmark]);
 
-  // 4. On-Demand 3D Parabolic Arc Route Layer Update
+  // 4. On-Demand Mapbox Directions API Street Route & 3D Arc Update
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    let isCancelled = false;
 
-    const updateRoute = () => {
+    const updateRoute = async () => {
       const source3D = map.getSource('route-3d-source') as mapboxgl.GeoJSONSource;
       const sourceShadow = map.getSource('route-shadow-source') as mapboxgl.GeoJSONSource;
       const sourceRings = map.getSource('landing-rings-source') as mapboxgl.GeoJSONSource;
@@ -285,40 +285,48 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
       if (!source3D || !sourceShadow || !sourceRings) return;
 
       if (itinerary && itinerary.length >= 2) {
-        const { arc3DCoordinates, shadowCoordinates, landingPoints } = generateItinerary3DArc(itinerary);
+        // Fetch real street geometry via Mapbox Directions API ('driving' or 'walking')
+        const waypoints: [number, number][] = itinerary.map((item) => [
+          item.coordinates.lng,
+          item.coordinates.lat
+        ]);
 
-        // Update 3D Parabolic Arc ("Vuelo de Pájaro")
-        source3D.setData({
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: arc3DCoordinates
-          }
-        });
+        const streetCoordinates = await fetchMapboxRoute(waypoints, 'driving');
 
-        // Update Ground Shadow Line
-        sourceShadow.setData({
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: shadowCoordinates
-          }
-        });
-
-        // Update POI Landing Impact Rings
-        sourceRings.setData({
-          type: 'FeatureCollection',
-          features: landingPoints.map((pt) => ({
+        if (!isCancelled) {
+          // Update Street Route Line Following Streets
+          sourceShadow.setData({
             type: 'Feature',
             properties: {},
             geometry: {
-              type: 'Point',
-              coordinates: pt
+              type: 'LineString',
+              coordinates: streetCoordinates
             }
-          }))
-        });
+          });
+
+          // Set 3D line to match street geometry so no straight flight arc is drawn
+          source3D.setData({
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: streetCoordinates
+            }
+          });
+
+          // Update POI Landing Impact Rings at POI coordinates
+          sourceRings.setData({
+            type: 'FeatureCollection',
+            features: waypoints.map((pt) => ({
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'Point',
+                coordinates: pt
+              }
+            }))
+          });
+        }
       } else {
         source3D.setData({
           type: 'Feature',
@@ -350,6 +358,10 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
     } else {
       map.once('load', updateRoute);
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [itinerary]);
 
   return (
@@ -365,7 +377,7 @@ export const MapboxView: React.FC<MapboxViewProps> = ({
             <div className="bg-[#0a0806]/80 backdrop-blur-md px-4 py-2 rounded-lg border border-[#9ff1f0]/20 flex items-center gap-3 pointer-events-auto">
               <span className="w-2 h-2 rounded-full bg-[#00F5D4] animate-ping" />
               <div className="text-xs font-mono tracking-wider text-[#97e8e8]">
-                Arco 3D "Vuelo de Pájaro" | Mapbox WebGIS Montería
+                Ruta por Calles (Mapbox Directions API) | Mapbox WebGIS Montería
               </div>
             </div>
 
